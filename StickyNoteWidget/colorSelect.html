@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Colors</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .container {
+            margin-top: 40px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+            padding: 32px 24px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 520px;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                max-width: 99vw;
+                padding-left: 2vw;
+                padding-right: 2vw;
+            }
+        }
+
+        .color-square {
+            width: 180px;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            border: 1px solid #eee;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .pickers {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 8px;
+            width: 100%;
+            max-width: 380px;
+            justify-content: center;
+        }
+
+        .picker-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.95em;
+            color: #444;
+        }
+
+        .color-values {
+            color: #333;
+            font-size: 1em;
+            margin-top: 10px;
+            min-height: 22px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="colorSquare" class="color-square">Sample Text</div>
+        <div class="pickers">
+            <label class="picker-label">
+                Background
+                <input type="color" id="bgColor" value="#ffffc5">
+            </label>
+            <label class="picker-label">
+                Text
+                <input type="color" id="textColor" value="#000000">
+            </label>
+        </div>
+        <div id="colorValues" class="color-values"></div>
+        <button id="copyBtn"
+            style="margin-top:12px;padding:7px 18px;font-size:1em;background:#1976d2;color:#fff;border:none;border-radius:4px;cursor:pointer;">Select
+            colors</button>
+    </div>
+    <script>
+        const colorSquare = document.getElementById('colorSquare');
+        const bgColor = document.getElementById('bgColor');
+        const textColor = document.getElementById('textColor');
+        const colorValues = document.getElementById('colorValues');
+
+        function updateColorsDisplay() {
+            const bg = bgColor.value;
+            const text = textColor.value;
+            colorSquare.style.background = bg;
+            colorSquare.style.color = text;
+            const bgHex = bg.replace('#', '');
+            const textHex = text.replace('#', '');
+            colorValues.textContent = bgHex + ',' + textHex;
+        }
+
+        function copyColorsToClipboard() {
+            const bgHex = bgColor.value;
+            const textHex = textColor.value;
+            var ta = document.createElement('textarea');
+            ta.value = bgHex + ',' + textHex;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) { }
+            document.body.removeChild(ta);
+            document.title = 'Press Done!';
+            // Change button text and color
+            const btn = document.getElementById('copyBtn');
+            const oldText = btn.textContent;
+            btn.textContent = 'Selected!';
+            btn.style.background = '#43a047';
+            setTimeout(() => {
+                btn.textContent = oldText;
+                btn.style.background = '#1976d2';
+            }, 1200);
+        }
+
+        bgColor.addEventListener('input', updateColorsDisplay);
+        textColor.addEventListener('input', updateColorsDisplay);
+        // No automatic copying
+        document.getElementById('copyBtn').addEventListener('click', copyColorsToClipboard);
+        // Initial render
+        updateColorsDisplay();
+    </script>
+</body>
+
+</html>

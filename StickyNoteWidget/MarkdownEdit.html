@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Markdown</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            margin-top: 40px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+            padding: 32px 24px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            max-width: 600px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 250px;
+            font-size: 1.1em;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            margin-bottom: 0px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        .preview {
+            min-height: 120px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            padding: 18px 14px;
+            font-size: 1.1em;
+            color: #222;
+            margin-top: 8px;
+            overflow-x: auto;
+        }
+    </style>
+    <!-- Use marked.js from CDN for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <textarea id="mdInput" placeholder="Type markdown here...">$CLIPBOARD$</textarea>
+        <!-- Replaced with clipboard content -->
+        <button id="applyBtn"
+            style="margin-top:14px;padding:8px 22px;font-size:1em;background:#1976d2;color:#fff;border:none;border-radius:4px;cursor:pointer;">Apply</button>
+        <div id="mdPreview" class="preview"></div>
+    </div>
+    <script>
+        const mdInput = document.getElementById('mdInput');
+        const mdPreview = document.getElementById('mdPreview');
+
+        function updatePreview() {
+            mdPreview.innerHTML = marked.parse(mdInput.value);
+        }
+
+        function copyPreviewToClipboard() {
+            var ta = document.createElement('textarea');
+            ta.value = mdInput.value;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) { }
+            document.body.removeChild(ta);
+            // Change button text and color, and page title
+            const btn = document.getElementById('applyBtn');
+            const oldText = btn.textContent;
+            btn.textContent = 'Applied!';
+            btn.style.background = '#43a047';
+            document.title = 'Press Done!';
+            setTimeout(() => {
+                btn.textContent = oldText;
+                btn.style.background = '#1976d2';
+            }, 1200);
+        }
+
+        mdInput.addEventListener('input', updatePreview);
+        // Initial render
+        updatePreview();
+        document.getElementById('applyBtn').addEventListener('click', copyPreviewToClipboard);
+    </script>
+</body>
+
+</html>

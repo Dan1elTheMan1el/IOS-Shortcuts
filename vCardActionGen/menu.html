@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta 
+  name="viewport" 
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>vCard Menu Maker</title>
+<style>
+  body {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    margin: 0; padding: 10px;
+    background: #f9f9f9;
+  }
+  h1 { text-align: center; margin-top: 0; }
+  #list { margin-bottom: 10px; }
+  .item {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    padding: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .image-container {
+    flex-shrink: 0;
+    width: 80px;
+    height: 80px;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .image-container input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+  .text-container {
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .inputs {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 4px;
+  }
+  .inputs input {
+    font-size: 16px;
+    padding: 6px 8px;
+    box-sizing: border-box;
+  }
+.delete {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: white;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    margin-left: 10px;
+    width: auto;
+}
+  button {
+    font-size: 16px;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #007bff;
+    color: white;
+    margin: 5px 0;
+    width: 100%;
+  }
+  #copy { background: #28a745; }
+</style>
+</head>
+<body>
+<h1>vCard Menu Maker</h1>
+
+<div id="list"></div>
+<button id="add">Add Item</button>
+<button id="copy">Copy Actions</button>
+
+<textarea id="hidden" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
+
+<script>
+const list = document.getElementById('list');
+const hidden = document.getElementById('hidden');
+const copyBtn = document.getElementById('copy');
+let items = [];
+
+function resizeImage(file, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 100;
+      canvas.height = 100;
+      ctx.drawImage(img, 0, 0, 100, 100);
+      const base64 = canvas.toDataURL('image/png').split(',')[1];
+      callback(base64);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function generateJSON() {
+  return JSON.stringify(items.map(it => ({
+    title: it.title,
+    subtitle: it.subtitle,
+    icon: it.photo || ""
+  })), null, 2);
+}
+
+function render() {
+  list.innerHTML = '';
+  items.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'item';
+
+    const imageContainer = document.createElement('div');
+    imageContainer.className = 'image-container';
+    const img = document.createElement('img');
+    img.src = item.photo ? `data:image/png;base64,${item.photo}` : '';
+    const inputFile = document.createElement('input');
+    inputFile.type = 'file';
+    inputFile.accept = 'image/*';
+    inputFile.onchange = e => {
+      const file = e.target.files[0];
+      if (file) resizeImage(file, base64 => {
+        item.photo = base64;
+        render();
+      });
+    };
+    imageContainer.appendChild(img);
+    imageContainer.appendChild(inputFile);
+
+    const textContainer = document.createElement('div');
+    textContainer.className = 'text-container';
+
+    const inputsDiv = document.createElement('div');
+    inputsDiv.className = 'inputs';
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = "Title";
+    titleInput.value = item.title;
+    titleInput.oninput = e => item.title = e.target.value;
+
+    const subtitleInput = document.createElement('input');
+    subtitleInput.type = 'text';
+    subtitleInput.placeholder = "Subtitle";
+    subtitleInput.value = item.subtitle;
+    subtitleInput.oninput = e => item.subtitle = e.target.value;
+
+    inputsDiv.appendChild(titleInput);
+    inputsDiv.appendChild(subtitleInput);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'delete';
+    removeBtn.textContent = "❌";
+    removeBtn.onclick = () => {
+      items.splice(i, 1);
+      render();
+    };
+
+    textContainer.appendChild(inputsDiv);
+    textContainer.appendChild(removeBtn);
+
+    div.appendChild(imageContainer);
+    div.appendChild(textContainer);
+    list.appendChild(div);
+  });
+}
+
+document.getElementById('add').onclick = () => {
+  items.push({ title: '', subtitle: '', photo: '' });
+  render();
+};
+
+copyBtn.onclick = async () => {
+  const jsonText = generateJSON();
+
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(jsonText);
+    } catch {
+      hidden.value = jsonText;
+      hidden.select();
+      document.execCommand("copy");
+    }
+  } else {
+    hidden.value = jsonText;
+    hidden.select();
+    document.execCommand("copy");
+  }
+
+  copyBtn.textContent = "Copied!";
+  document.title = "Press Done! →";
+};
+
+items.push({ title: '', subtitle: '', photo: '' });
+render();
+</script>
+</body>
+</html>

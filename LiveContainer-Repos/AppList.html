@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Choose another repo ➡️</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #151515;
+            color: #d4d4d4;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 24px 12px 48px 12px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 24px;
+            letter-spacing: 0.02em;
+        }
+
+        .app-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .app-card {
+            display: flex;
+            align-items: center;
+            background: #3c3c3c;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(255, 255, 255, 0.257);
+            padding: 16px;
+            transition: box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+            color: #fff;
+            gap: 12px;
+        }
+
+        .app-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.38);
+            border-radius: 16px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .app-card>* {
+            position: relative;
+            z-index: 1;
+        }
+
+        .app-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            background: #eee;
+            object-fit: cover;
+            margin-right: 18px;
+            flex-shrink: 0;
+        }
+
+        .app-info {
+            flex: 1 1 0%;
+            min-width: 0;
+            overflow: visible;
+        }
+
+        .app-name {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: visible;
+            text-overflow: ellipsis;
+            position: relative;
+            z-index: 1;
+        }
+
+        .app-subtitle {
+            font-size: 0.98rem;
+            color: #b0b0b0;
+            margin-bottom: 2px;
+        }
+
+        .download-btn {
+            background: #228af9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-left: 0;
+            z-index: 2;
+            position: relative;
+        }
+
+        .download-btn:active {
+            background: #005ecb;
+        }
+
+        .download-btn.selected {
+            background: #28a745;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 12px 2vw 32px 2vw;
+            }
+
+            .app-card {
+                padding: 12px;
+            }
+
+            .app-icon {
+                width: 52px;
+                height: 52px;
+            }
+        }
+
+        .app-details-dropdown {
+            width: 100%;
+            margin-top: 0;
+            border-radius: 10px;
+            background: none;
+            border: none;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .dropdown-summary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #8ad6ff;
+            outline: none;
+            padding: 2px 8px;
+            background: rgba(30, 30, 30, 0.85);
+            border-radius: 6px;
+            user-select: none;
+            border: none;
+            min-width: 28px;
+            min-height: 28px;
+            height: 28px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .app-details-dropdown[open] .dropdown-summary {
+            color: #fff;
+            background: rgba(30, 30, 30, 0.95);
+        }
+
+        .app-details-dropdown[open] .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .app-details-dropdown .app-description {
+            margin: 14px 0 10px 0;
+            font-size: 1.01rem;
+            line-height: 1.6;
+            color: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>$NAME$</h1> <!-- Replaced with repo name -->
+        <div class="app-list">
+            $APP-LIST$ <!-- Replaced with app list html -->
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(function () { });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); } catch (e) { }
+                document.body.removeChild(ta);
+            }
+        }
+
+        const buttons = Array.from(document.querySelectorAll('.download-btn'));
+
+        function setupButton(btn) {
+            btn.setAttribute('aria-pressed', 'false');
+            btn.addEventListener('click', () => {
+                const card = btn.closest('.app-card');
+                if (!card) return;
+
+                let appName = '';
+                const copyEl = card.querySelector('.copy-value');
+                if (copyEl && copyEl.textContent.trim()) {
+                    appName = copyEl.textContent.trim();
+                } else if (btn.dataset && btn.dataset.copy) {
+                    appName = btn.dataset.copy.trim();
+                } else {
+                    const nameEl = card.querySelector('.app-name');
+                    appName = nameEl ? nameEl.textContent.trim() : '';
+                }
+
+                const wasSelected = btn.classList.contains('selected');
+
+                // deselect all first
+                buttons.forEach(b => {
+                    b.classList.remove('selected');
+                    b.setAttribute('aria-pressed', 'false');
+                    b.textContent = 'Select';
+                });
+
+                if (!wasSelected) {
+                    btn.classList.add('selected');
+                    btn.setAttribute('aria-pressed', 'true');
+
+                    if (appName) {
+                        copyToClipboard(appName);
+                    }
+
+                    btn.textContent = 'Selected!';
+
+                    document.title = "Press done to install! ➡️";
+                }
+            });
+        }
+
+        buttons.forEach(setupButton);
+    </script>
+</body>
+
+</html>

@@ -1,4 +1,4 @@
-export default {
+export default { // https://repo-html.friedmandaniel111.workers.dev/
     async fetch(request, env, ctx) {
         if (request.method !== "POST") {
             return new Response(JSON.stringify({ error: "Use POST" }), {

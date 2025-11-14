@@ -1,252 +1,444 @@
 <!DOCTYPE html>
 <html lang="en">
-   <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-      <title>vCard Menu Maker</title>
-      <style>
-         body { font-family: -apple-system, "Segoe UI", sans-serif; margin:0; padding:10px; background:#f9f9f9; }
-         h1 { text-align:center; margin-top:0; }
-         #list { margin-bottom:10px; }
-         .item { background:#fff; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; padding:10px; display:flex; gap:10px; align-items:flex-start; }
-         .column { display:flex; flex-direction:column; gap:4px; }
-         .left-col { width:100px; flex-shrink:0; align-items:center; }
-         .middle-col { flex-grow:1; display:flex; flex-direction:column; gap:4px; max-width:calc(100% - 150px); }
-         .right-col { width:36px; flex-shrink:0; display:flex; align-items:flex-start; justify-content:flex-end; }
-         .image-box { width:80px; height:80px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; border-radius:8px; background:#eee; }
-         .image-box img { max-width:100%; max-height:100%; object-fit:contain; }
-         .image-box input[type=file] { position:absolute; opacity:0; width:100%; height:100%; cursor:pointer; }
-         select, input[type=text], button, input[type=color] { font-family:inherit; }
-         .icon-type { font-size:14px; border:1px solid #ccc; border-radius:4px; padding:2px 4px; width:100%; }
-         .inputs input { font-size:18px; padding:6px 8px; box-sizing:border-box; width:100%; }
-         .delete { background:none; border:none; font-size:20px; color:#d33; cursor:pointer; padding:0; margin:0; }
-         button.action-btn { font-size:14px; padding:4px 6px; border-radius:4px; background:#007bff; color:white; border:none; cursor:pointer; white-space:nowrap; }
-         button#add, button#copy { font-size:18px; padding:10px; border:none; border-radius:6px; margin:5px 0; width:100%; }
-         #copy { background:#28a745; color:white; }
-         .color-row { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
-         .color-picker { width:50px; height:28px; border-radius:4px; border:1px solid #ccc; padding:0; }
-         .sf-row { display:flex; gap:4px; align-items:center; flex-wrap:nowrap; }
-         .sf-input { font-size:18px; width:100px; }
-         /* Scrollable symbol list */
-         #symbol-list {
-         margin-top: 20px;
-         border: 1px solid #ccc;
-         border-radius: 6px;
-         padding: 8px;
-         max-height: 300px;
-         overflow-y: auto;
-         background: #fff;
-         }
-         #symbol-list-title { font-weight:bold; margin-bottom:4px; }
-         #symbol-note { font-size:12px; color:#555; margin-bottom:6px; }
-         #symbol-list input[type=search] { width:100%; padding:6px; font-size:16px; margin-bottom:10px; box-sizing:border-box; }
-         .symbol-item { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid #eee; }
-         .symbol-item img { width:24px; height:24px; object-fit:contain; flex-shrink:0; }
-         .symbol-item span { flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-         .symbol-item button.copy-symbol { font-size:12px; padding:4px 6px; border-radius:4px; background:#007bff; color:white; border:none; cursor:pointer; flex-shrink:0; }
-      </style>
-   </head>
-   <body>
-      <h1>vCard Menu Maker</h1>
-      <div id="list"></div>
-      <button id="add">Add Item</button>
-      <button id="copy">Copy Actions</button>
-      <textarea id="hidden" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
-      <!-- Symbol list section -->
-      <div id="symbol-list">
-         <div id="symbol-list-title">SF Symbols</div>
-         <div id="symbol-note">Some symbols won't load, I'm looking for a better source.</div>
-         <input type="search" id="symbolSearch" placeholder="Search symbols…">
-         <div id="symbolsContainer"></div>
-      </div>
-      <script>
-         const list = document.getElementById('list');
-         const hidden = document.getElementById('hidden');
-         const copyBtn = document.getElementById('copy');
-         let items = [];
-         
-         function resizeImage(file, callback) {
-           const reader = new FileReader();
-           reader.onload = e => {
-             const img = new Image();
-             img.onload = () => {
-               const canvas = document.createElement('canvas');
-               const ctx = canvas.getContext('2d');
-               canvas.width = 100; canvas.height = 100;
-               ctx.clearRect(0,0,100,100);
-               const scale = Math.min(100/img.width, 100/img.height);
-               const w = img.width * scale;
-               const h = img.height * scale;
-               ctx.drawImage(img, (100-w)/2, (100-h)/2, w, h);
-               callback(canvas.toDataURL('image/png').split(',')[1]);
-             };
-             img.src = e.target.result;
-           };
-           reader.readAsDataURL(file);
-         }
-         
-         function fetchSFSymbolBase64(symbolName, bg="#ffffff", fg="#000000", callback) {
-           const url = `https://raw.githubusercontent.com/phuocqb9/sf-symbols-online/master/glyphs/${encodeURIComponent(symbolName)}.png`;
-           fetch(url)
-             .then(r => r.blob())
-             .then(blob => {
-               const reader = new FileReader();
-               reader.onloadend = () => {
-                 const img = new Image();
-                 img.onload = () => {
-                   const canvas = document.createElement('canvas');
-                   const ctx = canvas.getContext('2d');
-                   canvas.width = 100; canvas.height = 100;
-                   ctx.clearRect(0,0,100,100);
-         
-                   const temp = document.createElement('canvas');
-                   temp.width = 100; temp.height = 100;
-                   const tctx = temp.getContext('2d');
-                   const scale = Math.min(100/img.width, 100/img.height);
-                   const w = img.width * scale, h = img.height * scale;
-                   tctx.drawImage(img, (100-w)/2, (100-h)/2, w, h);
-                   const imgData = tctx.getImageData(0,0,100,100);
-         
-                   const bgR = parseInt(bg.slice(1,3),16),
-                         bgG = parseInt(bg.slice(3,5),16),
-                         bgB = parseInt(bg.slice(5,7),16);
-                   const fgR = parseInt(fg.slice(1,3),16),
-                         fgG = parseInt(fg.slice(3,5),16),
-                         fgB = parseInt(fg.slice(5,7),16);
-         
-                   ctx.fillStyle = bg;
-                   ctx.fillRect(0,0,100,100);
-         
-                   const outData = ctx.getImageData(0,0,100,100);
-                   for (let i=0;i<imgData.data.length;i+=4){
-                     const alpha = imgData.data[i+3]/255;
-                     outData.data[i]   = Math.round(fgR*alpha + bgR*(1-alpha));
-                     outData.data[i+1] = Math.round(fgG*alpha + bgG*(1-alpha));
-                     outData.data[i+2] = Math.round(fgB*alpha + bgB*(1-alpha));
-                     outData.data[i+3] = 255;
-                   }
-                   ctx.putImageData(outData,0,0);
-                   callback(canvas.toDataURL('image/png').split(',')[1]);
-                 };
-                 img.src = reader.result;
-               };
-               reader.readAsDataURL(blob);
-             })
-             .catch(()=>{ callback(""); });
-         }
-         
-         function generateJSON() {
-           return JSON.stringify(items.map(it => ({
-             title: it.title,
-             subtitle: it.subtitle,
-             icon: it.photo || ""
-           })), null, 2);
-         }
-         
-         function render() {
-           list.innerHTML = "";
-           items.forEach((item,i)=>{
-             const div = document.createElement("div");
-             div.className="item";
-         
-             const leftCol = document.createElement("div");
-             leftCol.className="column left-col";
-             const imageBox = document.createElement("div");
-             imageBox.className="image-box";
-             const imgEl = document.createElement("img");
-             imgEl.src = item.photo ? `data:image/png;base64,${item.photo}` : "";
-             const inputFile = document.createElement("input");
-             inputFile.type="file"; inputFile.accept="image/*";
-             inputFile.onchange=e=>{
-               const file=e.target.files[0]; if(file){ resizeImage(file, base64=>{ item.photo=base64; item.iconType="image"; render(); }); }
-             };
-             imageBox.appendChild(imgEl);
-             imageBox.appendChild(inputFile);
-         
-             const select=document.createElement("select");
-             select.className="icon-type";
-             select.innerHTML=`<option value="image" ${item.iconType!=="sf"?"selected":""}>Image</option>
-                               <option value="sf" ${item.iconType==="sf"?"selected":""}>SF Symbol</option>`;
-             select.onchange=()=>{ item.iconType=select.value; render(); };
-             leftCol.appendChild(imageBox); leftCol.appendChild(select);
-         
-             const middleCol=document.createElement("div");
-             middleCol.className="column middle-col";
-             const titleInput=document.createElement("input");
-             titleInput.type="text"; titleInput.placeholder="Title"; titleInput.value=item.title; titleInput.style.fontSize="18px";
-             titleInput.oninput=e=>item.title=e.target.value;
-             const subtitleInput=document.createElement("input");
-             subtitleInput.type="text"; subtitleInput.placeholder="Subtitle"; subtitleInput.value=item.subtitle; subtitleInput.style.fontSize="18px";
-             subtitleInput.oninput=e=>item.subtitle=e.target.value;
-             middleCol.appendChild(titleInput); middleCol.appendChild(subtitleInput);
-         
-             if(item.iconType==="sf"){
-               const sfRow=document.createElement("div"); sfRow.className="sf-row";
-               const sfInput=document.createElement("input"); sfInput.type="text"; sfInput.placeholder="SF Symbol"; sfInput.value=item.sfName||""; sfInput.className="sf-input";
-               sfInput.oninput=e=>item.sfName=e.target.value.toLowerCase();
-               const updateBtn=document.createElement("button"); updateBtn.className="action-btn"; updateBtn.textContent="Update";
-               updateBtn.onclick=()=>{ if(sfInput.value.trim()){ fetchSFSymbolBase64(sfInput.value.trim(), item.bg||"#ffffff", item.fg||"#000000", base64=>{ item.photo=base64; imgEl.src=`data:image/png;base64,${base64}`; }); } };
-               sfRow.appendChild(sfInput); sfRow.appendChild(updateBtn);
-               middleCol.appendChild(sfRow);
-         
-               const colorRow=document.createElement("div"); colorRow.className="color-row";
-               const bgLabel=document.createElement("span"); bgLabel.textContent="BG:";
-               const bgInput=document.createElement("input"); bgInput.type="color"; bgInput.className="color-picker"; bgInput.value=item.bg||"#ffffff";
-               bgInput.oninput=e=>{ item.bg=e.target.value; if(item.sfName&&imgEl){ fetchSFSymbolBase64(item.sfName,item.bg,item.fg||"#000000",base64=>{ item.photo=base64; imgEl.src=`data:image/png;base64,${base64}`; }); } };
-               const fgLabel=document.createElement("span"); fgLabel.textContent="FG:";
-               const fgInput=document.createElement("input"); fgInput.type="color"; fgInput.className="color-picker"; fgInput.value=item.fg||"#000000";
-               fgInput.oninput=e=>{ item.fg=e.target.value; if(item.sfName&&imgEl){ fetchSFSymbolBase64(item.sfName,item.bg||"#ffffff",item.fg,base64=>{ item.photo=base64; imgEl.src=`data:image/png;base64,${base64}`; }); } };
-               colorRow.appendChild(bgLabel); colorRow.appendChild(bgInput); colorRow.appendChild(fgLabel); colorRow.appendChild(fgInput);
-               middleCol.appendChild(colorRow);
-             }
-         
-             const rightCol=document.createElement("div"); rightCol.className="column right-col";
-             const removeBtn=document.createElement("button"); removeBtn.className="delete"; removeBtn.textContent="❌";
-             removeBtn.onclick=()=>{ items.splice(i,1); render(); };
-             rightCol.appendChild(removeBtn);
-         
-             div.appendChild(leftCol); div.appendChild(middleCol); div.appendChild(rightCol);
-             list.appendChild(div);
-           });
-         }
-         
-         document.getElementById('add').onclick=()=>{ items.push({title:"",subtitle:"",photo:"",iconType:"image"}); render(); };
-         
-         copyBtn.onclick=async()=>{
-           const jsonText=generateJSON();
-           if(navigator.clipboard&&window.isSecureContext){ try{ await navigator.clipboard.writeText(jsonText); } catch{ hidden.value=jsonText; hidden.select(); document.execCommand("copy"); } }
-           else { hidden.value=jsonText; hidden.select(); document.execCommand("copy"); }
-           copyBtn.textContent="Copied!"; document.title="Press Done! →";
-         };
-         
-         async function loadSymbolList() {
-           const resp = await fetch("https://raw.githubusercontent.com/Dan1elTheMan1el/IOS-Shortcuts/refs/heads/main/vCardActionGen/symbols.json");
-           const symbols = await resp.json();
-           const container = document.getElementById("symbolsContainer");
-           symbols.forEach(name => {
-             const imgUrl = `https://raw.githubusercontent.com/phuocqb9/sf-symbols-online/master/glyphs/${encodeURIComponent(name)}.png`;
-             const itemDiv = document.createElement("div"); itemDiv.className="symbol-item";
-             const imgEl = document.createElement("img"); imgEl.src = imgUrl;
-             const nameSpan = document.createElement("span"); nameSpan.textContent = name;
-             const copyBtnSym = document.createElement("button"); copyBtnSym.className="copy-symbol"; copyBtnSym.textContent="Copy";
-             copyBtnSym.onclick = () => { navigator.clipboard.writeText(name); };
-             itemDiv.appendChild(imgEl); itemDiv.appendChild(nameSpan); itemDiv.appendChild(copyBtnSym);
-             container.appendChild(itemDiv);
-           });
-           const searchInput = document.getElementById("symbolSearch");
-           searchInput.oninput = () => { 
-             const q = searchInput.value.toLowerCase();
-             container.querySelectorAll(".symbol-item").forEach(div=>{
-               const txt = div.querySelector("span").textContent.toLowerCase();
-               div.style.display = txt.includes(q)?"":"none";
-             });
-           };
-         }
-         
-         // initialise
-         items.push({title:"",subtitle:"",photo:"",iconType:"image"});
-         render();
-         loadSymbolList();
-      </script>
-   </body>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>vCard Menu Maker</title>
+  <style>
+    body {
+      font-family: -apple-system, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 10px;
+      background: #f9f9f9;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    #list {
+      margin-bottom: 10px;
+    }
+
+    .item {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      padding: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .left-col {
+      width: 100px;
+      flex-shrink: 0;
+      align-items: center;
+    }
+
+    .middle-col {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: calc(100% - 150px);
+    }
+
+    .right-col {
+      width: 36px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+
+    .image-box {
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      border-radius: 8px;
+      background: #eee;
+    }
+
+    .image-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .image-box input[type=file] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    select,
+    input[type=text],
+    button,
+    input[type=color] {
+      font-family: inherit;
+    }
+
+    .icon-type {
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 2px 4px;
+      width: 100%;
+    }
+
+    .inputs input {
+      font-size: 18px;
+      padding: 6px 8px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .delete {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #d33;
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+    }
+
+    button.action-btn {
+      font-size: 14px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button#add,
+    button#copy {
+      font-size: 18px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      margin: 5px 0;
+      width: 100%;
+    }
+
+    #copy {
+      background: #28a745;
+      color: white;
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .color-picker {
+      width: 50px;
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      padding: 0;
+    }
+
+    .sf-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+
+    .sf-input {
+      font-size: 18px;
+      width: 100px;
+    }
+
+    /* Scrollable symbol list */
+    #symbol-list {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #fff;
+    }
+
+    #symbol-list-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    #symbol-note {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    #symbol-list input[type=search] {
+      width: 100%;
+      padding: 6px;
+      font-size: 16px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    .symbol-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .symbol-item img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .symbol-item span {
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .symbol-item button.copy-symbol {
+      font-size: 12px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>vCard Menu Maker</h1>
+  <div id="list"></div>
+  <button id="add">Add Item</button>
+  <button id="copy">Copy Actions</button>
+  <textarea id="hidden" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
+  <!-- Symbol list section -->
+  <div id="symbol-list">
+    <div id="symbol-list-title">SF Symbols</div>
+    <div id="symbol-note">Some symbols won't load, I'm looking for a better source.</div>
+    <input type="search" id="symbolSearch" placeholder="Search symbols…">
+    <div id="symbolsContainer"></div>
+  </div>
+  <script>
+    const list = document.getElementById('list');
+    const hidden = document.getElementById('hidden');
+    const copyBtn = document.getElementById('copy');
+    let items = [];
+
+    function resizeImage(file, callback) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = 160; canvas.height = 160;
+          ctx.clearRect(0, 0, 160, 160);
+          const scale = Math.min(160 / img.width, 160 / img.height);
+          const w = img.width * scale;
+          const h = img.height * scale;
+          ctx.drawImage(img, (160 - w) / 2, (160 - h) / 2, w, h);
+          callback(canvas.toDataURL('image/png').split(',')[1]);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function fetchSFSymbolBase64(symbolName, bg = "#ffffff", fg = "#000000", callback) {
+      const url = `https://raw.githubusercontent.com/phuocqb9/sf-symbols-online/master/glyphs/${encodeURIComponent(symbolName)}.png`;
+      fetch(url)
+        .then(r => r.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              canvas.width = 160; canvas.height = 160;
+              ctx.clearRect(0, 0, 160, 160);
+
+              const temp = document.createElement('canvas');
+              temp.width = 160; temp.height = 160;
+              const tctx = temp.getContext('2d');
+              const scale = Math.min(160 / img.width, 160 / img.height);
+              const w = img.width * scale, h = img.height * scale;
+              tctx.drawImage(img, (160 - w) / 2, (160 - h) / 2, w, h);
+              const imgData = tctx.getImageData(0, 0, 160, 160);
+
+              const bgR = parseInt(bg.slice(1, 3), 16),
+                bgG = parseInt(bg.slice(3, 5), 16),
+                bgB = parseInt(bg.slice(5, 7), 16);
+              const fgR = parseInt(fg.slice(1, 3), 16),
+                fgG = parseInt(fg.slice(3, 5), 16),
+                fgB = parseInt(fg.slice(5, 7), 16);
+
+              ctx.fillStyle = bg;
+              ctx.fillRect(0, 0, 160, 160);
+
+              const outData = ctx.getImageData(0, 0, 160, 160);
+              for (let i = 0; i < imgData.data.length; i += 4) {
+                const alpha = imgData.data[i + 3] / 255;
+                outData.data[i] = Math.round(fgR * alpha + bgR * (1 - alpha));
+                outData.data[i + 1] = Math.round(fgG * alpha + bgG * (1 - alpha));
+                outData.data[i + 2] = Math.round(fgB * alpha + bgB * (1 - alpha));
+                outData.data[i + 3] = 255;
+              }
+              ctx.putImageData(outData, 0, 0);
+              callback(canvas.toDataURL('image/png').split(',')[1]);
+            };
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => { callback(""); });
+    }
+
+    function generateJSON() {
+      return JSON.stringify(items.map(it => ({
+        title: it.title,
+        subtitle: it.subtitle,
+        icon: it.photo || ""
+      })), null, 2);
+    }
+
+    function render() {
+      list.innerHTML = "";
+      items.forEach((item, i) => {
+        const div = document.createElement("div");
+        div.className = "item";
+
+        const leftCol = document.createElement("div");
+        leftCol.className = "column left-col";
+        const imageBox = document.createElement("div");
+        imageBox.className = "image-box";
+        const imgEl = document.createElement("img");
+        imgEl.src = item.photo ? `data:image/png;base64,${item.photo}` : "";
+        const inputFile = document.createElement("input");
+        inputFile.type = "file"; inputFile.accept = "image/*";
+        inputFile.onchange = e => {
+          const file = e.target.files[0]; if (file) { resizeImage(file, base64 => { item.photo = base64; item.iconType = "image"; render(); }); }
+        };
+        imageBox.appendChild(imgEl);
+        imageBox.appendChild(inputFile);
+
+        const select = document.createElement("select");
+        select.className = "icon-type";
+        select.innerHTML = `<option value="image" ${item.iconType !== "sf" ? "selected" : ""}>Image</option>
+                               <option value="sf" ${item.iconType === "sf" ? "selected" : ""}>SF Symbol</option>`;
+        select.onchange = () => { item.iconType = select.value; render(); };
+        leftCol.appendChild(imageBox); leftCol.appendChild(select);
+
+        const middleCol = document.createElement("div");
+        middleCol.className = "column middle-col";
+        const titleInput = document.createElement("input");
+        titleInput.type = "text"; titleInput.placeholder = "Title"; titleInput.value = item.title; titleInput.style.fontSize = "18px";
+        titleInput.oninput = e => item.title = e.target.value;
+        const subtitleInput = document.createElement("input");
+        subtitleInput.type = "text"; subtitleInput.placeholder = "Subtitle"; subtitleInput.value = item.subtitle; subtitleInput.style.fontSize = "18px";
+        subtitleInput.oninput = e => item.subtitle = e.target.value;
+        middleCol.appendChild(titleInput); middleCol.appendChild(subtitleInput);
+
+        if (item.iconType === "sf") {
+          const sfRow = document.createElement("div"); sfRow.className = "sf-row";
+          const sfInput = document.createElement("input"); sfInput.type = "text"; sfInput.placeholder = "SF Symbol"; sfInput.value = item.sfName || ""; sfInput.className = "sf-input";
+          sfInput.oninput = e => item.sfName = e.target.value.toLowerCase();
+          const updateBtn = document.createElement("button"); updateBtn.className = "action-btn"; updateBtn.textContent = "Update";
+          updateBtn.onclick = () => { if (sfInput.value.trim()) { fetchSFSymbolBase64(sfInput.value.trim(), item.bg || "#ffffff", item.fg || "#000000", base64 => { item.photo = base64; imgEl.src = `data:image/png;base64,${base64}`; }); } };
+          sfRow.appendChild(sfInput); sfRow.appendChild(updateBtn);
+          middleCol.appendChild(sfRow);
+
+          const colorRow = document.createElement("div"); colorRow.className = "color-row";
+          const bgLabel = document.createElement("span"); bgLabel.textContent = "BG:";
+          const bgInput = document.createElement("input"); bgInput.type = "color"; bgInput.className = "color-picker"; bgInput.value = item.bg || "#ffffff";
+          bgInput.oninput = e => { item.bg = e.target.value; if (item.sfName && imgEl) { fetchSFSymbolBase64(item.sfName, item.bg, item.fg || "#000000", base64 => { item.photo = base64; imgEl.src = `data:image/png;base64,${base64}`; }); } };
+          const fgLabel = document.createElement("span"); fgLabel.textContent = "FG:";
+          const fgInput = document.createElement("input"); fgInput.type = "color"; fgInput.className = "color-picker"; fgInput.value = item.fg || "#000000";
+          fgInput.oninput = e => { item.fg = e.target.value; if (item.sfName && imgEl) { fetchSFSymbolBase64(item.sfName, item.bg || "#ffffff", item.fg, base64 => { item.photo = base64; imgEl.src = `data:image/png;base64,${base64}`; }); } };
+          colorRow.appendChild(bgLabel); colorRow.appendChild(bgInput); colorRow.appendChild(fgLabel); colorRow.appendChild(fgInput);
+          middleCol.appendChild(colorRow);
+        }
+
+        const rightCol = document.createElement("div"); rightCol.className = "column right-col";
+        const removeBtn = document.createElement("button"); removeBtn.className = "delete"; removeBtn.textContent = "❌";
+        removeBtn.onclick = () => { items.splice(i, 1); render(); };
+        rightCol.appendChild(removeBtn);
+
+        div.appendChild(leftCol); div.appendChild(middleCol); div.appendChild(rightCol);
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById('add').onclick = () => { items.push({ title: "", subtitle: "", photo: "", iconType: "image" }); render(); };
+
+    copyBtn.onclick = async () => {
+      const jsonText = generateJSON();
+      if (navigator.clipboard && window.isSecureContext) { try { await navigator.clipboard.writeText(jsonText); } catch { hidden.value = jsonText; hidden.select(); document.execCommand("copy"); } }
+      else { hidden.value = jsonText; hidden.select(); document.execCommand("copy"); }
+      copyBtn.textContent = "Copied!"; document.title = "Press Done! →";
+    };
+
+    async function loadSymbolList() {
+      const resp = await fetch("https://raw.githubusercontent.com/Dan1elTheMan1el/IOS-Shortcuts/refs/heads/main/vCardActionGen/symbols.json");
+      const symbols = await resp.json();
+      const container = document.getElementById("symbolsContainer");
+      symbols.forEach(name => {
+        const imgUrl = `https://raw.githubusercontent.com/phuocqb9/sf-symbols-online/master/glyphs/${encodeURIComponent(name)}.png`;
+        const itemDiv = document.createElement("div"); itemDiv.className = "symbol-item";
+        const imgEl = document.createElement("img"); imgEl.src = imgUrl;
+        const nameSpan = document.createElement("span"); nameSpan.textContent = name;
+        const copyBtnSym = document.createElement("button"); copyBtnSym.className = "copy-symbol"; copyBtnSym.textContent = "Copy";
+        copyBtnSym.onclick = () => { navigator.clipboard.writeText(name); };
+        itemDiv.appendChild(imgEl); itemDiv.appendChild(nameSpan); itemDiv.appendChild(copyBtnSym);
+        container.appendChild(itemDiv);
+      });
+      const searchInput = document.getElementById("symbolSearch");
+      searchInput.oninput = () => {
+        const q = searchInput.value.toLowerCase();
+        container.querySelectorAll(".symbol-item").forEach(div => {
+          const txt = div.querySelector("span").textContent.toLowerCase();
+          div.style.display = txt.includes(q) ? "" : "none";
+        });
+      };
+    }
+
+    // initialise
+    items.push({ title: "", subtitle: "", photo: "", iconType: "image" });
+    render();
+    loadSymbolList();
+  </script>
+</body>
+
 </html>

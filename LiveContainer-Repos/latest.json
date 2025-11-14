@@ -1,6 +1,6 @@
 {
-    "version": "2.2",
+    "version": "3.0",
     "download": "https://shortcuty.app/api/shortcuts/2915d5fe-df56-4da7-abd8-080824b14917/get",
-    "icloud": "https://www.icloud.com/shortcuts/72571e58c96748b5a68f440ffd1dc214",
-    "changelog": "- Alternate download/install methods\n- Removed UUID API dependency\n- Moved HTML to GitHub for easier updating\n- Switched to https://github.com/Dan1elTheMan1el/IOS-Shortcuts"
+    "icloud": "https://www.icloud.com/shortcuts/5a889491e4ec4bb6967b54c6e95c81c3",
+    "changelog": "- Track installed apps\n- Automatic update checking\n- Improved notification consistency\n- Improved menu icon theme"
 }

@@ -22,6 +22,8 @@ export default { // https://repo-html.friedmandaniel111.workers.dev/
                 return await handleRepo(body);
             } else if (process === "search") {
                 return await handleSearch(body);
+            } else if (process === "getLatest") {
+                return await handleGetLatest(body, request);
             } else {
                 return new Response(JSON.stringify({ error: `Unsupported process: ${process}` }), {
                     status: 400,
@@ -58,7 +60,7 @@ async function handleRepo(body) {
     const repoName = repoData.name ?? "";
     const apps = Array.isArray(repoData.apps) ? repoData.apps : [];
 
-    const finalHtml = buildAppsHtml(apps);
+    const finalHtml = buildAppsHtml(apps, { repo: repoName, repoURL: repoUrl });
 
     return new Response(JSON.stringify({ name: repoName, html: finalHtml }), {
         status: 200,
@@ -105,7 +107,7 @@ async function handleSearch(body) {
                         }
 
                         if (bestScore !== Infinity) {
-                            results.push({ app, repoName, score: bestScore });
+                            results.push({ app, repoName, repoURL: url, score: bestScore });
                         }
                     }
                 }
@@ -120,7 +122,9 @@ async function handleSearch(body) {
 
     // build HTML, overriding subtitle with repo name
     const finalHtml = results
-        .map(({ app, repoName }) => buildAppHtml(app, { subtitleOverride: repoName }))
+        .map(({ app, repoName, repoURL }) =>
+            buildAppHtml(app, { subtitleOverride: repoName, repo: repoName, repoURL })
+        )
         .join("\n");
 
     return new Response(
@@ -130,6 +134,73 @@ async function handleSearch(body) {
             headers: { "Content-Type": "application/json" },
         }
     );
+}
+
+async function handleGetLatest(body, request) {
+    // Accept repo URL and app bundle from body or headers (case-insensitive)
+    const repoURL =
+        body.repoURL ?? body.repoUrl ?? body.repourl ??
+        request.headers.get("repoURL") ?? request.headers.get("repourl") ?? request.headers.get("repoUrl");
+
+    const appBundle =
+        body.appBundle ?? body.bundle ?? body.appbundle ??
+        request.headers.get("appBundle") ?? request.headers.get("appbundle") ?? request.headers.get("app-bundle");
+
+    if (!repoURL) {
+        return new Response(JSON.stringify({ error: "Missing repoURL" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
+
+    if (!appBundle) {
+        return new Response(JSON.stringify({ error: "Missing appBundle" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
+
+    try {
+        const repoResp = await fetch(repoURL);
+        if (!repoResp.ok) {
+            return new Response(JSON.stringify({ error: "Failed to fetch repo JSON" }), {
+                status: repoResp.status,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
+        const repoData = await repoResp.json();
+        const repoName = repoData.name ?? "";
+        if (!Array.isArray(repoData.apps)) {
+            return new Response(JSON.stringify({ error: "Repo JSON missing apps array" }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
+        for (const app of repoData.apps) {
+            if (!app) continue;
+            if (app.bundleIdentifier === appBundle) {
+                const appForResp = Object.assign({}, app);
+                if (repoName !== undefined) appForResp.repo = repoName;
+                if (repoURL !== undefined) appForResp.repoURL = repoURL;
+                return new Response(JSON.stringify(appForResp), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                });
+            }
+        }
+
+        return new Response(JSON.stringify({ error: "App not found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+        });
+    } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
 }
 
 // --- Helpers ---
@@ -155,11 +226,13 @@ function fuzzyScore(text, pattern) {
     return score;
 }
 
-function buildAppsHtml(apps) {
-    return apps.map((app) => buildAppHtml(app)).join("\n");
+function buildAppsHtml(apps, { repo, repoURL } = {}) {
+    return apps
+        .map((app) => buildAppHtml(app, { repo, repoURL }))
+        .join("\n");
 }
 
-function buildAppHtml(app, { subtitleOverride } = {}) {
+function buildAppHtml(app, { subtitleOverride, repo, repoURL } = {}) {
     const subtitle =
         subtitleOverride ?? app.subtitle ?? app.bundleIdentifier ?? "";
     const extraStyle = app.tintColor
@@ -168,7 +241,10 @@ function buildAppHtml(app, { subtitleOverride } = {}) {
     const description = (app.localizedDescription ?? "").replace(/\n/g, "<br>");
     const iconURL = app.iconURL ?? "";
     const name = app.name ?? "";
-    const encodedDict = encodeURIComponent(JSON.stringify(app));
+    const appForEncode = Object.assign({}, app);
+    if (repo !== undefined) appForEncode.repo = repo;
+    if (repoURL !== undefined) appForEncode.repoURL = repoURL;
+    const encodedDict = encodeURIComponent(JSON.stringify(appForEncode));
 
     let version = "";
     if ("version" in app) {

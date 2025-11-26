@@ -47,14 +47,14 @@ export default {
         // Handle AppsInfo
         if (method === "POST" && body.process === "AppsInfo") {
             const results = body.data.map(async (item) => {
-                const { repoURL, ignore, bundleIdentifier, version } = item;
+                const { repoURL, ignore, bundleIdentifier, name, version } = item;
                 try {
                     const repoResp = await fetch(repoURL);
                     const repo = await repoResp.json();
                     const repoName = repo.name || "Unknown Repo";
-                    const app = repo.apps?.find(a => a.bundleIdentifier === bundleIdentifier);
+                    const app = repo.apps?.find(a => a.bundleIdentifier === bundleIdentifier && a.name === name);
 
-                    if (!app) return `ERROR: App ${bundleIdentifier} not found`;
+                    if (!app) return `ERROR: App ${bundleIdentifier} (${name}) not found`;
 
                     const appName = app.name || bundleIdentifier;
                     const latest = app.version || app.versions?.[0]?.version || "Unknown";
@@ -110,7 +110,7 @@ export default {
                 try {
                     const resp = await fetch(app.repoURL);
                     const repo = await resp.json();
-                    const match = repo.apps?.find(a => a.bundleIdentifier === app.bundleIdentifier);
+                    const match = repo.apps?.find(a => a.bundleIdentifier === app.bundleIdentifier && a.name === app.name);
 
                     if (!match) return null;
 

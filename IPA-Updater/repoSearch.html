@@ -1,0 +1,259 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Enter Repo URL and select an app!</title>
+
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --card: #111;
+            --text: #e8ebee;
+            --muted: #9ba0a8;
+            --accent: #0fa5a4;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text";
+            padding: 14px;
+        }
+
+        header {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type=url],
+        input[type=search] {
+            flex: 1;
+            padding: 11px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            background: #0f0f12;
+            color: var(--text);
+            font-size: 16px;
+        }
+
+        button {
+            padding: 11px 16px;
+            border-radius: 12px;
+            border: none;
+            background: var(--accent);
+            color: #031314;
+            font-weight: 600;
+        }
+
+        #searchRow {
+            display: none;
+            margin-top: 15px;
+        }
+
+        #apps {
+            display: grid;
+            gap: 12px;
+            margin-top: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        }
+
+        .card {
+            background: #111;
+            border-radius: 14px;
+            padding: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid #1a1a1d;
+        }
+
+        .icon img {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            object-fit: cover;
+        }
+
+        .name {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .sub {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 3px;
+        }
+
+        .actions button {
+            margin-top: 6px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            background: transparent;
+            border: 1px solid #197f7d;
+            color: var(--accent);
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <input id="repoURL" type="url" placeholder="https://example.com/repo.json">
+        <button id="loadBtn">Load</button>
+    </header>
+
+    <div id="status" style="margin-top:12px; color:var(--muted);">
+        Enter a repo URL and tap Load.
+    </div>
+
+    <div id="searchRow">
+        <input id="search" type="search" placeholder="Search apps…">
+    </div>
+
+    <div id="apps"></div>
+
+    <script>
+        // === DOM refs ===
+        const repoInput = document.getElementById("repoURL");
+        const loadBtn = document.getElementById("loadBtn");
+        const appsDiv = document.getElementById("apps");
+        const status = document.getElementById("status");
+        const searchRow = document.getElementById("searchRow");
+        const searchInput = document.getElementById("search");
+
+        let repoURL = "";
+        let apps = [];
+
+        // === Copy without showing keyboard ===
+        function safeCopy(text) {
+            const t = document.createElement("textarea");
+            t.value = text;
+            t.style.position = "fixed";
+            t.style.opacity = "0";
+            t.style.pointerEvents = "none";
+            document.body.appendChild(t);
+
+            t.select();
+            t.setSelectionRange(0, 999999);
+
+            document.execCommand("copy");
+            document.body.removeChild(t);
+        }
+
+        // === Normalize URL ===
+        function normalize(url) {
+            if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+            return url;
+        }
+
+        // === Load Repo (XHR GET for Shortcuts) ===
+        function loadRepo() {
+            repoURL = normalize(repoInput.value.trim());
+            if (!repoURL) return;
+
+            status.textContent = "Loading...";
+            appsDiv.innerHTML = "";
+            apps = [];
+
+            const xhr = new XMLHttpRequest();
+            const workerURL = "https://test.friedmandaniel111.workers.dev/?process=getRepo&repoURL=" + encodeURIComponent(repoURL);
+
+            xhr.open("GET", workerURL, true);
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const json = JSON.parse(xhr.responseText);
+
+                            if (!json.apps || !Array.isArray(json.apps))
+                                throw new Error("Invalid repo (missing .apps)");
+
+                            apps = json.apps.map(a => {
+                                let latest = a.version;
+                                if (!latest && Array.isArray(a.versions) && a.versions.length > 0)
+                                    latest = a.versions[0].version || "";
+
+                                return {
+                                    name: a.name || "",
+                                    bundleIdentifier: a.bundleIdentifier || "",
+                                    version: latest || "",
+                                    iconURL: a.iconURL || ""
+                                };
+                            });
+
+                            status.textContent = `Loaded ${apps.length} app(s).`;
+                            searchRow.style.display = "block";
+                            renderApps(apps);
+
+                        } catch (err) {
+                            status.textContent = "Failed to parse repo JSON.";
+                        }
+
+                    } else {
+                        status.textContent = "Failed to load repo (XHR error).";
+                    }
+                }
+            };
+
+            xhr.send();
+        }
+
+        // === Render ===
+        function renderApps(list) {
+            appsDiv.innerHTML = list.map(app => `
+    <div class="card">
+      <div class="icon">
+        <img src="${app.iconURL}">
+      </div>
+      <div style="flex:1">
+        <div class="name">${app.name}</div>
+        <div class="sub">${app.bundleIdentifier} • ${app.version}</div>
+        <div class="actions">
+          <button onclick='selectApp(${JSON.stringify(app).replace(/'/g, "&#39;")}, this)'>
+            Select
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join("");
+        }
+
+        // === Select App ===
+        function selectApp(app, btn) {
+            const dict = {
+                repoURL,
+                version: app.version,
+                bundleIdentifier: app.bundleIdentifier
+            };
+            safeCopy(encodeURIComponent(JSON.stringify(dict)));
+
+            // Update button text
+            btn.textContent = "Selected!";
+            // Update page title
+            document.title = "Press to continue →";
+        }
+
+        // === Search ===
+        searchInput.addEventListener("input", () => {
+            const q = searchInput.value.toLowerCase();
+            const filtered = apps.filter(a =>
+                a.name.toLowerCase().includes(q) ||
+                a.bundleIdentifier.toLowerCase().includes(q) ||
+                a.version.toLowerCase().includes(q)
+            );
+            renderApps(filtered);
+        });
+
+        // === Event ===
+        loadBtn.addEventListener("click", loadRepo);
+    </script>
+
+</body>
+
+</html>

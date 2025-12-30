@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Preview</title>
+
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --card: #111;
+            --text: #e8ebee;
+            --muted: #9ba0a8;
+            --accent: #0fa5a4;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text";
+            padding: 14px;
+        }
+
+        #clips {
+            display: grid;
+            gap: 12px;
+            margin-top: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        }
+
+        .card {
+            background: #111;
+            border-radius: 14px;
+            padding: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid #1a1a1d;
+        }
+
+        .icon img {
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            object-fit: cover;
+        }
+
+        .author {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .name {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .sub {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 3px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="clips"></div>
+
+    <script>
+        // Render a single hardcoded clip card and hide search UI
+        const clip = { "EXAMPLE": "POST" };
+
+        const clipsDiv = document.getElementById('clips');
+        clipsDiv.innerHTML = `
+          <div class="card">
+            <div class="icon" style="flex-shrink:0; text-align:center;">
+              <img src="data:image/png;base64,${clip.icon64}" alt="${clip.name} Icon">
+              <div class="author">${clip.author.length < 16 ? clip.author : clip.author.slice(0, 13) + '...'}</div>
+            </div>
+            <div style="flex:1">
+              <div class="name">${clip.name}</div>
+              <div class="sub">${clip.description} • <b>${clip.actionCount}</b> Actions • ${clip.date}</div>
+            </div>
+          </div>
+        `;
+    </script>
+
+</body>
+
+</html>

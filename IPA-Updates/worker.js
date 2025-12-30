@@ -1,4 +1,4 @@
-export default {
+export default { // https://ipa-updates.friedmandaniel111.workers.dev/
     async fetch(request) {
         // Handle CORS Preflight
         if (request.method === "OPTIONS") {

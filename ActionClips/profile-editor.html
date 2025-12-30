@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Profile Editor</title>
+    <style>
+        :root {
+            --accent: #007aff
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: #f2f4f8
+        }
+
+        .card {
+            width: 100%;
+            max-width: 520px;
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(10, 20, 40, .06)
+        }
+
+        .center {
+            text-align: center
+        }
+
+        .avatar {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+            margin: 0 auto;
+            background: linear-gradient(180deg, #eee, #ddd);
+            cursor: pointer;
+            border: 4px solid #fff;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .08)
+        }
+
+        .hint {
+            margin-top: 10px;
+            font-weight: 600;
+            color: #111
+        }
+
+        .input {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #e6e9ef;
+            font-size: 1.125rem
+        }
+
+        .btn {
+            width: 100%;
+            display: block;
+            margin-top: 16px;
+            background: var(--accent);
+            color: #fff;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1.06rem
+        }
+
+        .btn.success {
+            background: #16a34a;
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(22, 163, 74, .12);
+            pointer-events: none
+        }
+
+        .status {
+            margin-top: 10px;
+            text-align: center;
+            color: #2b2b2b;
+            font-size: .95rem
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            font-family: monospace;
+            min-height: 110px;
+            resize: vertical
+        }
+
+        .small {
+            font-size: .86rem;
+            color: #666;
+            margin-top: 8px;
+            text-align: center
+        }
+
+        @media (max-width:420px) {
+            .avatar {
+                width: 140px;
+                height: 140px
+            }
+
+            .input {
+                font-size: 1rem;
+                padding: 12px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="center">
+            <img id="avatarPreview" class="avatar" alt="Tap to choose image"
+                src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><rect width='100%' height='100%' fill='%23eee'/><g fill='%23999'><circle cx='80' cy='50' r='30'/><path d='M40 130c0-20 20-36 40-36s40 16 40 36z'/></g></svg>" />
+            <input id="fileInput" type="file" accept="image/*" style="display:none" />
+            <div class="hint">Tap avatar to choose an image</div>
+        </div>
+
+        <input id="username" class="input" placeholder="Enter username" aria-label="username" />
+
+        <button id="doneBtn" class="btn">Submit</button>
+    </div>
+
+    <script>
+        // Elements
+        const avatar = document.getElementById('avatarPreview');
+        const fileInput = document.getElementById('fileInput');
+        const doneBtn = document.getElementById('doneBtn');
+        const usernameInput = document.getElementById('username');
+
+        // Stores the resized (100x100) PNG as base64 (no data URL prefix)
+        let currentIconBase64 = '';
+
+        // Prepare default icon by resizing the embedded SVG avatar to 100x100 PNG
+        (function initDefaultIcon() {
+            const img = new Image();
+            img.onload = () => {
+                const resizedDataUrl = resizeImageTo100(img);
+                currentIconBase64 = resizedDataUrl.split(',')[1] || '';
+            };
+            img.onerror = () => {
+                // Default image failed to load; currentIconBase64 remains empty
+            };
+            img.src = avatar.src;
+        })();
+
+        // Helper: resize image to exactly 100x100, center-cropped
+        function resizeImageTo100(img) {
+            const target = 100;
+            const canvas = document.createElement('canvas');
+            canvas.width = target;
+            canvas.height = target;
+            const ctx = canvas.getContext('2d');
+
+            const iw = img.naturalWidth || img.width;
+            const ih = img.naturalHeight || img.height;
+            // scale to cover
+            const scale = Math.max(target / iw, target / ih);
+            const dw = iw * scale;
+            const dh = ih * scale;
+            const dx = (target - dw) / 2;
+            const dy = (target - dh) / 2;
+            ctx.clearRect(0, 0, target, target);
+            ctx.drawImage(img, dx, dy, dw, dh);
+            // Return data URL
+            return canvas.toDataURL('image/png');
+        }
+
+        // When avatar clicked, open file picker
+        avatar.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            // Read as data URL for preview and resizing
+            const reader = new FileReader();
+            reader.onload = () => {
+                const dataUrl = reader.result;
+                const img = new Image();
+                img.onload = () => {
+                    // Show a large preview using the original data URL (keeps quality)
+                    avatar.src = dataUrl;
+                    // Create resized 100x100 PNG and store base64 string without prefix
+                    const resizedDataUrl = resizeImageTo100(img);
+                    currentIconBase64 = resizedDataUrl.split(',')[1] || '';
+                };
+                img.onerror = () => {
+                    // Could not load user image; keep previous avatar
+                };
+                img.src = dataUrl;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                // Fallback: create a temporary hidden textarea and use execCommand
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    return true;
+                } catch (e) {
+                    document.body.removeChild(ta);
+                    return false;
+                }
+            }
+        }
+
+        doneBtn.addEventListener('click', async () => {
+            const username = (usernameInput.value || '').trim();
+            if (!username) {
+                usernameInput.focus();
+                return;
+            }
+            if (!currentIconBase64) {
+                return;
+            }
+            const out = { icon64: currentIconBase64, username };
+            const json = JSON.stringify(out);
+            const ok = await copyToClipboard(json);
+
+            // Change button appearance and page title after pressing
+            doneBtn.textContent = 'Copied!';
+            doneBtn.classList.add('success');
+            doneBtn.disabled = true;
+            document.title = 'Press to continue →';
+
+            if (!ok) {
+                console.log('Profile JSON:', json);
+            }
+        });
+
+        // Allow pressing Enter in username to trigger Done
+        usernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                doneBtn.click();
+            }
+        });
+    </script>
+</body>
+
+</html>

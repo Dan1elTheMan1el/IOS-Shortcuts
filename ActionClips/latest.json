@@ -1,0 +1,6 @@
+{
+    "version": "1.0",
+    "download": "https://shortcuty.app/api/shortcuts/UUID_HERE/get",
+    "icloud": "ICLOUD_HERE",
+    "changelog": "- Initial release"
+}

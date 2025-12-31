@@ -176,18 +176,6 @@ export default {
                         profileBlob = new Blob([pArr], { type: "image/png" });
                     }
 
-                    // Screenshot handling
-                    let screenshotBlob = null;
-                    try {
-                        const s = body.screenshot;
-                        if (s) {
-                            const sArr = base64ToUint8Array(s);
-                            screenshotBlob = new Blob([sArr], { type: "image/png" });
-                        }
-                    } catch (err) {
-                        screenshotBlob = null;
-                    }
-
                     // Sign unsigned.shortcut via Hubsign
                     const signForm = new FormData();
                     signForm.append("shortcut", unsignedShortcutBlob, "unsigned.shortcut");
@@ -206,7 +194,7 @@ export default {
                             title: "Signing error for: " + name,
                             fields: [
                                 { name: "Error", value: errorText || signResp.statusText, inline: false },
-                                { name: "Submitter", value: profile.username || "Unknown", inline: true },
+                                { name: "Submitter", value: profile.username || "Unknown", inline: true }
                             ],
                             timestamp: new Date().toISOString(),
                         };
@@ -215,7 +203,6 @@ export default {
                         errForm.append("payload_json", JSON.stringify({ embeds: [errEmbed] }));
                         errForm.append("files[0]", unsignedShortcutBlob, "unsigned.shortcut");
                         if (profileBlob) errForm.append("files[1]", profileBlob, "profile.png");
-                        if (screenshotBlob) errForm.append("files[2]", screenshotBlob, "screenshot.png");
 
                         try {
                             await fetch(webhook, { method: "POST", body: errForm });
@@ -242,10 +229,6 @@ export default {
                         if (profileBlob) embed.author.icon_url = "attachment://profile.png";
                     }
 
-                    if (screenshotBlob) {
-                        embed.image = { url: "attachment://combined.png" };
-                    }
-
                     const payload = { embeds: [embed] };
 
                     // Prepare multipart body
@@ -256,8 +239,7 @@ export default {
                     form.append("files[0]", signedShortcutBlob, "ActionClip" + name + ".shortcut");
 
                     // Additional attachments
-                    if (screenshotBlob) form.append("files[1]", screenshotBlob, "screenshot.png");
-                    if (profileBlob) form.append("files[2]", profileBlob, "profile.png");
+                    if (profileBlob) form.append("files[1]", profileBlob, "profile.png");
 
                     try {
                         await fetch(webhook, { method: "POST", body: form });

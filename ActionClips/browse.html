@@ -176,12 +176,13 @@
             ...(() => {
                 try {
                     const xhr = new XMLHttpRequest();
-                    xhr.open('GET', 'https://raw.githubusercontent.com/Dan1elTheMan1el/IOS-Shortcuts/refs/heads/main/ActionClips/clips/posted.json', false);
+                    xhr.open('GET', 'https://api.github.com/repos/Dan1elTheMan1el/IOS-Shortcuts/contents/ActionClips/clips/posted.json?ref=main', false);
+                    xhr.setRequestHeader('Accept', 'application/vnd.github.raw');
                     xhr.send(null);
                     if (xhr.status >= 200 && xhr.status < 300) {
                         const json = JSON.parse(xhr.responseText).posts;
                         console.log(json);
-                        if (Array.isArray(json)) return json;
+                        if (Array.isArray(json)) return json.slice().reverse();
                     }
                 } catch (e) { /* ignore */ }
                 return [];

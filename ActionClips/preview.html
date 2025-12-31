@@ -63,12 +63,60 @@
             font-size: 13px;
             margin-top: 3px;
         }
+
+        .screenshot-btn {
+            margin-left: 8px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid #197f7d;
+            color: var(--accent);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        /* Overlay for screenshot */
+        #screenshotOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #screenshotOverlay img {
+            max-width: 95vw;
+            max-height: 95vh;
+            object-fit: contain;
+            border-radius: 6px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        #screenshotClose {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: 1px solid #444;
+            color: var(--text);
+            font-size: 20px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
     </style>
 </head>
 
 <body>
 
     <div id="clips"></div>
+
+    <div id="screenshotOverlay" tabindex="-1" role="dialog" aria-modal="true">
+        <button id="screenshotClose" aria-label="Close">✕</button>
+        <img id="screenshotImg" alt="Screenshot">
+    </div>
 
     <script>
         // Render a single hardcoded clip card and hide search UI
@@ -82,11 +130,35 @@
               <div class="author">${clip.author.length < 16 ? clip.author : clip.author.slice(0, 13) + '...'}</div>
             </div>
             <div style="flex:1">
-              <div class="name">${clip.name}</div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="name" style="flex:1">${clip.name}</div>
+                ${clip.screenshot64 ? `<button class="screenshot-btn" onclick='openScreenshot("data:image/png;base64,${clip.screenshot64}")' aria-label="View screenshot">🔍</button>` : ''}
+              </div>
               <div class="sub">${clip.description} • <b>${clip.actionCount}</b> Actions • ${clip.date}</div>
             </div>
           </div>
         `;
+
+        // === Screenshot overlay handlers ===
+        function openScreenshot(src) {
+            if (!src) return;
+            const overlay = document.getElementById('screenshotOverlay');
+            const img = document.getElementById('screenshotImg');
+            img.src = src;
+            overlay.style.display = 'flex';
+            overlay.focus();
+        }
+        function closeScreenshot() {
+            const overlay = document.getElementById('screenshotOverlay');
+            const img = document.getElementById('screenshotImg');
+            overlay.style.display = 'none';
+            img.src = '';
+        }
+        document.getElementById('screenshotClose').addEventListener('click', closeScreenshot);
+        document.getElementById('screenshotOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'screenshotOverlay') closeScreenshot();
+        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeScreenshot(); });
     </script>
 
 </body>

@@ -53,10 +53,11 @@ export default {
             return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
         }
 
-        // Early IPv6 blacklist check (household-level /64 by default)
+        // Early IP blacklist check (IPv6 household /64, IPv4 /24 by default)
         const clientIp = request.headers.get("CF-Connecting-IP") || request.headers.get("x-forwarded-for") || null;
 
         const isValidIPv6 = ip => !!ip && ip.includes(":");
+        const isValidIPv4 = ip => !!ip && !!ip.split(",")[0] && /^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip.split(",")[0].trim());
 
         const parseIPv6ToBigInt = (ip) => {
             // drop zone id like %eth0
@@ -96,20 +97,60 @@ export default {
             }
         };
 
+        const parseIPv4ToInt = (ip) => {
+            const parts = ip.split('.').map(s => Number(s));
+            if (parts.length !== 4 || parts.some(p => Number.isNaN(p) || p < 0 || p > 255)) return null;
+            return ((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + (parts[3] >>> 0);
+        };
+
+        const ipv4InCidr = (ip, cidr) => {
+            try {
+                const [net, maskStr] = cidr.split("/");
+                const mask = maskStr ? Number(maskStr) : 24;
+                if (mask < 0 || mask > 32) return false;
+                const ipInt = parseIPv4ToInt(ip);
+                const netInt = parseIPv4ToInt(net);
+                if (ipInt === null || netInt === null) return false;
+                const maskInt = mask === 0 ? 0 : ((0xFFFFFFFF << (32 - mask)) >>> 0);
+                return (ipInt & maskInt) === (netInt & maskInt);
+            } catch (e) {
+                return false;
+            }
+        };
+
         const isBlocked = async (ip) => {
-            if (!ip || !isValidIPv6(ip)) return false;
+            if (!ip) return false;
+            const ipStr = ip.split(",")[0].trim();
             const raw = await env.ACTIONCLIPS_BLACKLIST.get("entries");
             const entries = raw ? JSON.parse(raw) : [];
             for (const e of entries) {
                 const entry = String(e || "").trim();
                 if (!entry) continue;
-                if (entry.includes("/")) {
-                    if (ipv6InCidr(ip, entry)) return true;
-                } else {
-                    // default to /64 for household blocking
-                    const cidr = entry + "/64";
-                    if (ipv6InCidr(ip, cidr)) return true;
+
+                // If entry looks like IPv6 (contains ':') handle as IPv6
+                if (entry.includes(":")) {
+                    if (entry.includes("/")) {
+                        if (ipv6InCidr(ipStr, entry)) return true;
+                    } else {
+                        const cidr = entry + "/64";
+                        if (ipv6InCidr(ipStr, cidr)) return true;
+                    }
+                    continue;
                 }
+
+                // If entry looks like IPv4 (contains '.') handle as IPv4
+                if (entry.includes(".")) {
+                    if (entry.includes("/")) {
+                        if (ipv4InCidr(ipStr, entry)) return true;
+                    } else {
+                        // default to /24 for IPv4 household blocking
+                        const cidr = entry + "/24";
+                        if (ipv4InCidr(ipStr, cidr)) return true;
+                    }
+                    continue;
+                }
+
+                // otherwise ignore non-IP entries
             }
             return false;
         };

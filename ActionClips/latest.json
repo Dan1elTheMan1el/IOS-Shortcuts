@@ -1,6 +1,6 @@
 {
     "version": "1.0",
-    "download": "https://shortcuty.app/api/shortcuts/UUID_HERE/get",
-    "icloud": "ICLOUD_HERE",
+    "download": "https://shortcuty.app/api/shortcuts/bf75d7ef-0cf9-41c5-9e50-fb5e0872208c/get",
+    "icloud": "https://www.icloud.com/shortcuts/cb2c7c3faf794c65b9efaf25ddf29833",
     "changelog": "- Initial release"
 }

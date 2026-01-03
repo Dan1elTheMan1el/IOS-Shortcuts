@@ -1,6 +1,8 @@
 # Action Clips
 Save Action Clips and paste them into other shortcuts! Publish and download other user’s creations!
 
+![alt text](demo.PNG)
+
 ## What does it do?
 **Action Clips** are small snippets of iOS Shortcut Actions that might be frequently used, but don't make up an entire shortcut. This could be an update checking module, a javascript snippet, or a common Yes/No menu. **Action Clips** allows you to create, copy, download, and share these clips to use in your shortcut development.
 

@@ -1,6 +1,6 @@
 {
-    "version": "1.0",
+    "version": "1.1",
     "download": "https://shortcuty.app/api/shortcuts/bf75d7ef-0cf9-41c5-9e50-fb5e0872208c/get",
-    "icloud": "https://www.icloud.com/shortcuts/cb2c7c3faf794c65b9efaf25ddf29833",
-    "changelog": "- Initial release"
+    "icloud": "https://www.icloud.com/shortcuts/4066d3ce5cc5432d9d87e64e461bc41b",
+    "changelog": "- Populate name with shortcut name\n- Disallow slashes in name"
 }

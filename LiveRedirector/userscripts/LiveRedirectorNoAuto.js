@@ -63,7 +63,7 @@
 
     // Add an icon to the button
     const icon = document.createElement('img');
-    icon.src = `https://github.com/Dan1elTheMan1el/IOS-Shortcuts/raw/main/LiveRedirector/icons/LiveRedirector${LiveContainerNumber}.png`;
+    icon.src = `https://github.com/Dan1elTheMan1el/IOS-Shortcuts/raw/main/LiveRedirector/icons/livecontainer${LiveContainerNumber}.png`;
     icon.alt = 'LiveContainer Icon';
     icon.style.width = '28px';
     icon.style.height = '28px';

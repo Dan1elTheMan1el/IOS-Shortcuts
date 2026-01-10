@@ -3,6 +3,7 @@
 // @namespace    https://github.com/Dan1elTheMan1el/LiveRedirect
 // @description  Automatically redirect specific URLs to LiveContainer
 // @author       DanielTheManiel
+// @version      2.0
 // MATCHES HERE (MANAGED BY SHORTCUT)
 // @grant        none
 // ==/UserScript==
@@ -10,8 +11,44 @@
 (function () {
     'use strict';
 
-    // Specify which LiveContainer to use (1, 2 or 3)
-    const LiveContainerNumber = 1;
+    // MAP HERE (MANAGED BY SHORTCUT)
+    const matchMap = {};
+
+    function matchesPattern(pattern, hostname, pathname) {
+        if (!pattern) return false;
+        // Normalize and strip protocol leading slashes
+        const p = pattern.trim().replace(/^https?:\/\//i, '').replace(/^\/+/, '');
+        const slashIndex = p.indexOf('/');
+        const domain = slashIndex === -1 ? p : p.slice(0, slashIndex);
+        const path = slashIndex === -1 ? '' : p.slice(slashIndex + 1);
+
+        // Host matches if equal or subdomain
+        const hostMatch = (hostname === domain) || hostname.endsWith('.' + domain);
+        if (!hostMatch) return false;
+
+        if (!path) return true; // no path specified => domain match is enough
+
+        const normalizedPath = '/' + path.replace(/^\/+/, '');
+        return pathname.startsWith(normalizedPath);
+    }
+
+    // Determine LiveContainerNumber based on provided mapping (default 1)
+    let LiveContainerNumber = 1;
+    try {
+        const hostname = window.location.hostname;
+        const pathname = window.location.pathname;
+        for (const [pattern, num] of Object.entries(matchMap)) {
+            if (matchesPattern(pattern, hostname, pathname)) {
+                const n = parseInt(num, 10);
+                if (n >= 1 && n <= 3) {
+                    LiveContainerNumber = n;
+                }
+                break;
+            }
+        }
+    } catch (e) {
+        console.warn('LiveRedirector: error determining LiveContainerNumber', e);
+    }
 
     // Automatically redirect to LiveContainer
     const currentUrl = window.location.href;

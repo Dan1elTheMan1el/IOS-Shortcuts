@@ -10,6 +10,7 @@ This is based on my app [LiveRedirector](https://github.com/Dan1elTheMan1el/Live
 - Automatically redirect specific URLs to LiveContainer app
 - Adds floating button to matching sites to manually redirect
 - Fully configurable using shortcut
+- Select specific LiveContainer apps to open for each URL
 
 ## Setup instructions
 - Identify your Userscripts directory

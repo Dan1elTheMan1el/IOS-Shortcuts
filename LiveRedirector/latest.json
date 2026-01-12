@@ -1,6 +1,6 @@
 {
     "version": "2.0",
     "download": "https://shortcuty.app/api/shortcuts/e9035be5-0dbd-41d0-99c6-3b2f46bcfa45/get",
-    "icloud": "",
+    "icloud": "https://www.icloud.com/shortcuts/5cf921f1c59a4a1391e5762b65bfeeb5",
     "changelog": "- Added update scheme\n- Support for multiple LiveContainers\n- Better Shortcut UI"
 }

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ShortGames</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon512.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: #1c1c1e;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .active {
+            display: block;
+        }
+
+        .card {
+            background: #2c2c2e;
+            padding: 24px;
+            border-radius: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin: 0 0 15px 0;
+            font-weight: 700;
+        }
+
+        p {
+            color: #aeaeb2;
+            line-height: 1.5;
+            font-size: 17px;
+        }
+
+        .btn {
+            background: #0a84ff;
+            color: white;
+            border: none;
+            font-size: 17px;
+            font-weight: 600;
+            padding: 16px;
+            border-radius: 14px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+
+        .btn:active {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+
+        .code-box {
+            font-family: monospace;
+            background: #000;
+            padding: 12px;
+            border-radius: 8px;
+            color: #30d158;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="view-install" class="screen">
+        <div class="card">
+            <h1>ShortGames</h1>
+            <p>Install the dashboard to start playing.</p>
+            <hr style="border: 0; border-top: 1px solid #48484a; margin: 20px 0;">
+            <p>1. Tap Share <span style="font-size: 20px; color: #0a84ff">⎋</span></p>
+            <p>2. "Add to Home Screen"</p>
+        </div>
+    </div>
+
+    <div id="view-setup" class="screen">
+        <div class="card">
+            <h1>Setup Player</h1>
+            <p>Enable notifications to generate your secure Player ID.</p>
+            <button class="btn" id="btn-enable">Create Account</button>
+        </div>
+    </div>
+
+    <div id="view-dashboard" class="screen">
+        <div class="card">
+            <h1>Ready to Play</h1>
+            <p>Your Player credentials have been generated.</p>
+
+            <div style="margin-top: 20px;">
+                <p style="font-size: 14px; margin-bottom: 5px;">PLAYER ID</p>
+                <div class="code-box" id="display-uuid">...</div>
+            </div>
+
+            <a id="lnk-shortcut" href="#" class="btn" style="background: #30d158; color: black;">
+                Launch Shortcut
+            </a>
+            <p style="font-size: 13px; margin-top: 10px; opacity: 0.6;">Tap to configure the iOS Shortcut automatically.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // CONFIG
+        const VAPID_PUBLIC_KEY = "BFNqNetG6flHZ8mmTnrt-2S9eVNRFhFi-4ZOPX4aoiYDD8gc50V5YBCNX_FdTjvwxhlZhHqKmtiCglUE1ndiLsk";
+        const WORKER_URL = "https://shortgames.friedmandaniel111.workers.dev";
+        const SHORTCUT_NAME = "ShortGames"; // Name of the shortcut in iOS
+
+        // STATE
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        const savedUUID = localStorage.getItem('sg_uuid');
+        const savedSecret = localStorage.getItem('sg_secret');
+
+        function init() {
+            if (savedUUID && savedSecret) {
+                showDashboard(savedUUID, savedSecret);
+            } else if (!isStandalone) {
+                showScreen('view-install');
+            } else {
+                showScreen('view-setup');
+            }
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function showDashboard(uuid, secret) {
+            showScreen('view-dashboard');
+            document.getElementById('display-uuid').textContent = uuid;
+
+            // Construct Deep Link
+            // Passes a JSON object as text input: {"uuid": "...", "secret": "..."}
+            const configData = JSON.stringify({ uuid: uuid, secret: secret });
+            const deepLink = `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}&input=text&text=${encodeURIComponent(configData)}`;
+
+            document.getElementById('lnk-shortcut').href = deepLink;
+        }
+
+        document.getElementById('btn-enable').onclick = async () => {
+            const btn = document.getElementById('btn-enable');
+            btn.innerText = "Registering...";
+
+            try {
+                // 1. Service Worker & Push
+                const reg = await navigator.serviceWorker.register('sw.js'); // Ensure sw.js exists
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') throw new Error("Notifications denied");
+
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: VAPID_PUBLIC_KEY
+                });
+
+                // 2. Register with Worker
+                const res = await fetch(`${WORKER_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sub)
+                });
+
+                if (!res.ok) throw new Error("Server Error");
+
+                const data = await res.json();
+
+                // 3. Save & Show
+                localStorage.setItem('sg_uuid', data.uuid);
+                localStorage.setItem('sg_secret', data.secret);
+
+                showDashboard(data.uuid, data.secret);
+
+            } catch (err) {
+                alert(err.message);
+                btn.innerText = "Try Again";
+            }
+        };
+
+        init();
+    </script>
+</body>
+
+</html>

@@ -42,21 +42,23 @@ export default {
             } catch (err) {
                 return new Response(`Error: ${err.message}`, { status: 500, headers: corsHeaders });
             }
-        } else if (url.pathname === "/user") {
+        }
+
+        const uuid = request.headers.get("uuid");
+        const secret = request.headers.get("secret");
+
+        if (!uuid || !secret) {
+            return new Response(JSON.stringify({ msg: "Missing UUID or Secret" }), { status: 400, headers: corsHeaders });
+        }
+
+        const storedSecret = await env.SHORTGAMES_USERS.get(`user:${uuid}:secret`);
+        if (storedSecret !== secret) {
+            return new Response(JSON.stringify({ msg: "Unauthorized" }), { status: 401, headers: corsHeaders });
+        }
+
+        if (url.pathname === "/user") {
             if (request.method === "GET") {
                 // --- USER INFO ENDPOINT ---
-                const uuid = request.headers.get("uuid");
-                const secret = request.headers.get("secret");
-
-                if (!uuid || !secret) {
-                    return new Response(JSON.stringify({ msg: "Missing UUID or Secret" }), { status: 400, headers: corsHeaders });
-                }
-
-                // Retrieve stored secret to verify
-                const storedSecret = await env.SHORTGAMES_USERS.get(`user:${uuid}:secret`);
-                if (storedSecret !== secret) {
-                    return new Response(JSON.stringify({ msg: "Unauthorized" }), { status: 401, headers: corsHeaders });
-                }
 
                 // Fetch each requested field
                 const params = JSON.parse(request.headers.get("params") || "[]");
@@ -71,19 +73,7 @@ export default {
                 }
                 return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
             } else if (request.method === "POST") {
-                // --- USER UPDATE ENDPOINT ---
-                const uuid = request.headers.get("uuid");
-                const secret = request.headers.get("secret");
-
-                if (!uuid || !secret) {
-                    return new Response(JSON.stringify({ msg: "Missing UUID or Secret" }), { status: 400, headers: corsHeaders });
-                }
-
-                // Retrieve stored secret to verify
-                const storedSecret = await env.SHORTGAMES_USERS.get(`user:${uuid}:secret`);
-                if (storedSecret !== secret) {
-                    return new Response(JSON.stringify({ msg: "Unauthorized" }), { status: 401, headers: corsHeaders });
-                }
+                // --- UPDATE USER INFO ENDPOINT ---
 
                 try {
                     const updates = await request.json();
@@ -102,6 +92,41 @@ export default {
             }
 
             return new Response("ShortGames Worker Ready", { headers: corsHeaders });
+        } else if (url.pathname === "/game") {
+            if (request.method === "POST") {
+                // --- NEW GAME ENDPOINT ---
+                try {
+                    const gameType = await request.json().get("type");
+                    const gameId = crypto.randomUUID();
+                    let state = {};
+                    let name = "";
+                    // VALIDATE GAME TYPE, GENERATE RELEVANT INITIAL DATA
+                    switch (gameType) {
+                        case "connect4":
+                            state = {
+                                board: ["", "", "", "", "", "", ""]
+                            }
+                            name = "Connect 4";
+                            break;
+                        default:
+                            return new Response(`Error: Invalid game type`, { status: 400, headers: corsHeaders });
+                    }
+                    // Fill in later
+                    const initialGameData = { type: gameType, createdAt: Date.now(), players: [uuid], state, turn: 1, name };
+
+                    // STORE GAME DATA
+                    const userGames = await env.SHORTGAMES_USERS.get(`user:${uuid}:games`);
+                    const gamesList = userGames ? JSON.parse(userGames) : [];
+                    gamesList.push(gameId);
+                    await env.SHORTGAMES_USERS.put(`user:${uuid}:games`, JSON.stringify(gamesList));
+                    await env.SHORTGAMES_GAMES.put(`game:${gameId}`, JSON.stringify(initialGameData));
+
+                    return new Response(JSON.stringify({ msg: "Success", gameId, name }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+                } catch (err) {
+                    return new Response(`Error: ${err.message}`, { status: 500, headers: corsHeaders });
+                }
+            }
         }
     }
 }
